@@ -1,5 +1,6 @@
 import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
+// ... (Các interface giữ nguyên như cũ)
 export interface Booking {
   id: string;
   userId: string;
@@ -72,18 +73,18 @@ class AdminService {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-      // Chuyển thông báo lỗi sang tiếng Anh nếu backend trả về tiếng Việt
       throw new Error(result.message || 'Invalid email or password');
     }
 
-    // Backend trả về token trong result.data.auth.stsTokenManager.accessToken
-    const token = result.data?.auth?.stsTokenManager?.accessToken;
+    const token = result.auth?.idToken;
 
     if (token) {
       localStorage.setItem('adminToken', token);
+    } else {
+      throw new Error('Không tìm thấy Token đăng nhập');
     }
 
-    return result.data;
+    return result.auth;
   }
 
   async register(data: RegistrationData): Promise<any> {
@@ -97,67 +98,134 @@ class AdminService {
     if (!response.ok || !result.success) {
       throw new Error(result.message || 'Registration failed');
     }
-
-    // Nếu backend tự động đăng nhập sau khi đăng ký, lưu token tại đây
-    if (result.auth?.stsTokenManager?.accessToken) {
-      localStorage.setItem('adminToken', result.auth.stsTokenManager.accessToken);
-    }
-
     return result;
   }
 
+  // SỬA: Hàm này cần đảm bảo không lỗi nếu API chưa có
   async getDepartments(): Promise<DepartmentDoctor> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.departmentsDoctors}`);
-    const result = await response.json();
+    try {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.departmentsDoctors}`);
 
-    if (!response.ok || !result.success) {
-      throw new Error('Could not load departments and doctors');
+      // Kiểm tra nếu response không OK (ví dụ 404)
+      if (!response.ok) {
+        console.warn('API Departments chưa sẵn sàng hoặc lỗi:', response.status);
+        return { departments: [], doctors: [] };
+      }
+
+      const result = await response.json();
+      return result.data || { departments: [], doctors: [] };
+    } catch (error) {
+      console.error('Lỗi khi lấy Departments:', error);
+      return { departments: [], doctors: [] };
     }
+  }
 
-    return result.data;
+  async getDepartmentsAndDoctors(): Promise<DepartmentDoctor> {
+    return this.getDepartments();
   }
 
   getUserInfo(): AdminUser | null {
     const token = localStorage.getItem('adminToken');
     if (!token) return null;
     try {
-      // Decode JWT để lấy role (Sử dụng thư viện jwt-decode nếu cần)
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload;
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
     } catch {
       return null;
     }
   }
 
-  // Lấy danh sách lịch hẹn (Phân quyền: Admin xem tất cả, Doctor xem theo khoa)
+  // SỬA QUAN TRỌNG: Xử lý an toàn khi fetch Booking
   async getBookings(): Promise<Booking[]> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.list}`, {
-      headers: getAuthHeaders(),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error('Failed to fetch bookings');
-    return result.data;
+    try {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.list}`, {
+        headers: getAuthHeaders(),
+      });
+
+      // Nếu server trả về 404 (Not Found), trả về mảng rỗng thay vì crash
+      if (!response.ok) {
+        console.warn(`Get Bookings failed: ${response.status} ${response.statusText}`);
+        return [];
+      }
+
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+      return [];
+    }
   }
 
-  // Cập nhật trạng thái lịch hẹn
   async updateBookingStatus(id: string, status: Booking['status']): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.cancel(id)}`, { // Giả sử backend dùng chung route hoặc bạn bổ sung route /update-status
+    const url = status === 'cancelled'
+      ? API_ENDPOINTS.booking.cancel(id)
+      : API_ENDPOINTS.booking.updateStatus(id);
+
+    const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ status })
     });
-    const result = await response.json();
+
     if (!response.ok) throw new Error('Failed to update status');
   }
 
-  // Lấy danh sách hồ sơ bệnh án
+  // SỬA QUAN TRỌNG: Xử lý an toàn khi fetch Medical Records
   async getMedicalRecords(): Promise<MedicalRecord[]> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.medical.list}`, {
-      headers: getAuthHeaders(),
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error('Failed to fetch records');
-    return result.data;
+    try {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.medical.list}`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        console.warn(`Get Records failed: ${response.status} ${response.statusText}`);
+        return [];
+      }
+
+      const result = await response.json();
+      return result.data || [];
+    } catch (error) {
+      console.error('Error fetching records:', error);
+      return [];
+    }
+  }
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    try {
+      // Vì getBookings và getMedicalRecords đã được sửa để trả về mảng rỗng khi lỗi
+      // nên Promise.all này sẽ không bị crash nữa.
+      const [bookings, records] = await Promise.all([
+        this.getBookings(),
+        this.getMedicalRecords()
+      ]);
+
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+
+      const todayAppointments = bookings.filter(b =>
+        b.appointmentDate.includes(todayStr) && b.status !== 'cancelled'
+      ).length;
+
+      const newAppointments = bookings.filter(b => b.status === 'pending').length;
+      const recentRecords = records.length;
+
+      return {
+        todayAppointments,
+        newAppointments,
+        recentRecords
+      };
+    } catch (error) {
+      console.error('Failed to get dashboard stats:', error);
+      return {
+        todayAppointments: 0,
+        newAppointments: 0,
+        recentRecords: 0
+      };
+    }
   }
 
   logout() {

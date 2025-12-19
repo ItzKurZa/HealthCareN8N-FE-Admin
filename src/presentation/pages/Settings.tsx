@@ -12,7 +12,7 @@ export function Settings() {
 
   const loadData = async () => {
     try {
-      const result = await adminService.getDepartmentsAndDoctors();
+      const result = await adminService.getDepartments();
       setData(result);
     } catch (error) {
       console.error('Error loading settings:', error);

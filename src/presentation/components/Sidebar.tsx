@@ -14,28 +14,28 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
-  // Lấy thông tin user (bao gồm role) từ token thông qua service
   const user = adminService.getUserInfo();
 
-  // Định nghĩa menu với phân quyền (Role-based Access Control)
+  console.log('Current User Info:', user);
+
   const menuItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctor', 'nurse', 'staff']
+      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse', 'staffs', 'staff', 'Staff']
     },
     {
       id: 'appointments',
       label: 'Appointments',
       icon: CalendarCheck,
-      roles: ['admin', 'doctor', 'staff']
+      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'staffs', 'staff', 'Staff']
     },
     {
       id: 'records',
       label: 'Medical Records',
       icon: FileText,
-      roles: ['admin', 'doctor', 'nurse']
+      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse']
     },
     {
       id: 'settings',
@@ -45,10 +45,10 @@ export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
     },
   ];
 
-  // Lọc các mục menu mà user hiện tại có quyền truy cập
-  const visibleItems = menuItems.filter(item =>
-    user && item.roles.includes(user.role)
-  );
+  const visibleItems = menuItems.filter(item => {
+    if (!user || !user.role) return false;
+    return item.roles.includes(user.role);
+  });
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-blue-700 text-white flex flex-col shadow-lg">
