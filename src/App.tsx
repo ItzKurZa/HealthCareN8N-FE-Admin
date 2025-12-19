@@ -25,7 +25,7 @@ function App() {
 
   const loadDepartments = async () => {
     try {
-      const data: DepartmentDoctor = await adminService.getDepartmentsAndDoctors();
+      const data: DepartmentDoctor = await adminService.getDepartments();
       setDepartments(data.departments);
     } catch {
       setDepartments([]);

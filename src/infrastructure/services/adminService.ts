@@ -61,6 +61,61 @@ class AdminService {
     return !!localStorage.getItem('adminToken');
   }
 
+  async login(email: string, password: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.account.login}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      // Chuyển thông báo lỗi sang tiếng Anh nếu backend trả về tiếng Việt
+      throw new Error(result.message || 'Invalid email or password');
+    }
+
+    // Backend trả về token trong result.data.auth.stsTokenManager.accessToken
+    const token = result.data?.auth?.stsTokenManager?.accessToken;
+
+    if (token) {
+      localStorage.setItem('adminToken', token);
+    }
+
+    return result.data;
+  }
+
+  async register(data: RegistrationData): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.account.register}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || 'Registration failed');
+    }
+
+    // Nếu backend tự động đăng nhập sau khi đăng ký, lưu token tại đây
+    if (result.auth?.stsTokenManager?.accessToken) {
+      localStorage.setItem('adminToken', result.auth.stsTokenManager.accessToken);
+    }
+
+    return result;
+  }
+
+  async getDepartments(): Promise<DepartmentDoctor> {
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.departmentsDoctors}`);
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error('Could not load departments and doctors');
+    }
+
+    return result.data;
+  }
+
   getUserInfo(): AdminUser | null {
     const token = localStorage.getItem('adminToken');
     if (!token) return null;
