@@ -10,6 +10,7 @@ interface RegisterProps {
 
 export function Register({ onRegisterSuccess, onBackToLogin, departments }: RegisterProps) {
   const [formData, setFormData] = useState({
+    cccd: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -52,6 +53,7 @@ export function Register({ onRegisterSuccess, onBackToLogin, departments }: Regi
 
     try {
       await adminService.register({
+        cccd: formData.cccd,
         email: formData.email,
         password: formData.password,
         fullName: formData.fullName,
@@ -89,6 +91,23 @@ export function Register({ onRegisterSuccess, onBackToLogin, departments }: Regi
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* CCCD */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.cccd}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="John Doe"
+                />
+              </div>
+            </div>
+
             {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>

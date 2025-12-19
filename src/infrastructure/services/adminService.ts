@@ -40,6 +40,7 @@ export interface DepartmentDoctor {
 export type EmployeeRole = 'admin' | 'doctor' | 'nurse' | 'staff';
 
 export interface RegistrationData {
+  cccd: string;
   email: string;
   password: string;
   fullName: string;
