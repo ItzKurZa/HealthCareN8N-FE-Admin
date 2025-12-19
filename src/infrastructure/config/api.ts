@@ -1,27 +1,25 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export const API_ENDPOINTS = {
+  account: {
+    login: '/account/signin',      // Khớp với router.post('/signin', signin)
+    register: '/account/signup',   // Khớp với router.post('/signup', signup)
+    profile: '/account/profile',
+  },
   booking: {
-    list: '/api/booking',
-    departmentsDoctors: '/api/booking/departments-doctors',
-    updateStatus: (id: string) => `/api/booking/${id}/status`,
+    list: '/booking',              // Cần backend hỗ trợ lấy tất cả cho admin
+    departmentsDoctors: '/booking/departments-doctors', // Khớp với route hiện tại
+    cancel: (id: string) => `/booking/cancel/${id}`,    // Khớp với route hiện tại
   },
   medical: {
-    list: '/api/medical',
-    byUser: (userId: string) => `/api/medical/user/${userId}`,
-    file: (fileId: string) => `/api/medical/file/${fileId}`,
-  },
-  account: {
-    login: '/api/account/login',
-    register: '/api/account/register',
-    profile: '/api/account/profile',
-  },
+    list: '/medical/upload', // Lưu ý: Backend hiện tại chỉ có route upload và delete
+  }
 };
 
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('adminToken');
   return {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
+    'Authorization': `Bearer ${token}` // Khớp với requireAuth trong backend
   };
 };
