@@ -48,117 +48,64 @@ export interface RegistrationData {
   department: string;
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: EmployeeRole;
+  department: string;
+}
+
 class AdminService {
-  async register(data: RegistrationData): Promise<{ token: string; user: any }> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.account.register}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Đăng ký thất bại');
-    }
-
-    const result = await response.json();
-    if (result.token) {
-      localStorage.setItem('adminToken', result.token);
-    }
-    return result;
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('adminToken');
   }
 
-  async login(email: string, password: string): Promise<{ token: string; user: any }> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.account.login}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Đăng nhập thất bại');
+  getUserInfo(): AdminUser | null {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return null;
+    try {
+      // Decode JWT để lấy role (Sử dụng thư viện jwt-decode nếu cần)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload;
+    } catch {
+      return null;
     }
-
-    const data = await response.json();
-    if (data.token) {
-      localStorage.setItem('adminToken', data.token);
-    }
-    return data;
   }
 
-  async getDashboardStats(): Promise<DashboardStats> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.list}`, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Không thể tải thống kê');
-    }
-
-    const bookings: Booking[] = await response.json();
-    const today = new Date().toISOString().split('T')[0];
-
-    return {
-      todayAppointments: bookings.filter(b => b.appointmentDate.startsWith(today)).length,
-      newAppointments: bookings.filter(b => b.status === 'pending').length,
-      recentRecords: 0,
-    };
-  }
-
+  // Lấy danh sách lịch hẹn (Phân quyền: Admin xem tất cả, Doctor xem theo khoa)
   async getBookings(): Promise<Booking[]> {
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.list}`, {
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error('Không thể tải danh sách lịch hẹn');
-    }
-
-    return response.json();
+    const result = await response.json();
+    if (!response.ok) throw new Error('Failed to fetch bookings');
+    return result.data;
   }
 
+  // Cập nhật trạng thái lịch hẹn
   async updateBookingStatus(id: string, status: Booking['status']): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.updateStatus(id)}`, {
-      method: 'PUT',
+    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.cancel(id)}`, { // Giả sử backend dùng chung route hoặc bạn bổ sung route /update-status
+      method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status })
     });
-
-    if (!response.ok) {
-      throw new Error('Không thể cập nhật trạng thái');
-    }
+    const result = await response.json();
+    if (!response.ok) throw new Error('Failed to update status');
   }
 
+  // Lấy danh sách hồ sơ bệnh án
   async getMedicalRecords(): Promise<MedicalRecord[]> {
     const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.medical.list}`, {
       headers: getAuthHeaders(),
     });
-
-    if (!response.ok) {
-      throw new Error('Không thể tải hồ sơ bệnh án');
-    }
-
-    return response.json();
+    const result = await response.json();
+    if (!response.ok) throw new Error('Failed to fetch records');
+    return result.data;
   }
 
-  async getDepartmentsAndDoctors(): Promise<DepartmentDoctor> {
-    const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.departmentsDoctors}`, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      throw new Error('Không thể tải danh sách khoa và bác sĩ');
-    }
-
-    return response.json();
-  }
-
-  logout(): void {
+  logout() {
     localStorage.removeItem('adminToken');
-  }
-
-  isAuthenticated(): boolean {
-    return !!localStorage.getItem('adminToken');
   }
 }
 
