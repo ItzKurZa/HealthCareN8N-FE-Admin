@@ -37,13 +37,13 @@ export interface DepartmentDoctor {
   }>;
 }
 
-export type EmployeeRole = 'admin' | 'doctor' | 'nurse' | 'staff';
+export type EmployeeRole = 'admin' | 'doctors' | 'nurses' | 'staffs';
 
 export interface RegistrationData {
   cccd: string;
   email: string;
   password: string;
-  fullName: string;
+  fullname: string;
   phone: string;
   role: EmployeeRole;
   department: string;

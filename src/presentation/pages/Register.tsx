@@ -25,9 +25,9 @@ export function Register({ onRegisterSuccess, onBackToLogin, departments }: Regi
 
   const roles: { value: EmployeeRole; label: string }[] = [
     { value: 'admin', label: 'Administrator' },
-    { value: 'doctor', label: 'Doctor' },
-    { value: 'nurse', label: 'Nurse' },
-    { value: 'staff', label: 'Support Staff' },
+    { value: 'doctors', label: 'Doctor' },
+    { value: 'nurses', label: 'Nurse' },
+    { value: 'staffs', label: 'Support Staff' },
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -56,7 +56,7 @@ export function Register({ onRegisterSuccess, onBackToLogin, departments }: Regi
         cccd: formData.cccd,
         email: formData.email,
         password: formData.password,
-        fullName: formData.fullName,
+        fullname: formData.fullName,
         phone: formData.phone,
         role: formData.role,
         department: formData.department,
@@ -186,7 +186,7 @@ export function Register({ onRegisterSuccess, onBackToLogin, departments }: Regi
                   {departments.map((dept: any) => (
                     <option
                       key={dept.id || dept} // Sử dụng id làm key duy nhất
-                      value={dept.name || dept} // Lưu tên khoa vào form
+                      value={dept.id || dept} // Lưu tên khoa vào form
                     >
                       {dept.name || dept} {/* Hiển thị tên khoa (chuỗi), không render cả object */}
                     </option>
