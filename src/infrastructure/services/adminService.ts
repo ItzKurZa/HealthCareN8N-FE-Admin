@@ -3,7 +3,8 @@ import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // ... (Các interface giữ nguyên như cũ)
 export interface Booking {
   id: string;
-  cccd: string;
+  userId: string;
+  patientName: string;
   department: string;
   doctor_name: string;
   appointment_date: string;

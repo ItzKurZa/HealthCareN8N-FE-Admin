@@ -155,11 +155,11 @@ export function Appointments() {
                     <div className="text-sm text-gray-900">{booking.department}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{booking.doctor}</div>
+                    <div className="text-sm text-gray-900">{booking.doctor_name}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {new Date(booking.appointmentDate).toLocaleDateString('vi-VN')}
+                      {new Date(booking.appointment_date).toLocaleDateString('vi-VN')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
