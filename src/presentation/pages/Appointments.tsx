@@ -2,30 +2,77 @@ import { useEffect, useState } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { adminService, Booking } from '../../infrastructure/services/adminService';
 
+// Định nghĩa interface cho Department để TypeScript hiểu (nếu chưa có trong adminService)
+interface Department {
+  uid: string; // hoặc id, tùy vào response thực tế của bạn
+  name: string;
+  description?: string;
+}
+
 export function Appointments() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 1. THÊM STATE CHO DEPARTMENTS
   const [filterDepartment, setFilterDepartment] = useState('all');
+  const [departmentsList, setDepartmentsList] = useState<Department[]>([]);
+  const [departmentMap, setDepartmentMap] = useState<Record<string, string>>({});
 
+  // 2. GỘP VIỆC TẢI DỮ LIỆU VÀO MỘT USE EFFECT CHÍNH
   useEffect(() => {
-    loadBookings();
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Gọi song song 2 API để tiết kiệm thời gian
+        const [bookingsData, deptData] = await Promise.all([
+          adminService.getBookings(),
+          adminService.getDepartments()
+        ]);
+
+        // Xử lý Bookings
+        setBookings(bookingsData);
+        setFilteredBookings(bookingsData);
+
+        // Xử lý Departments (dựa trên cấu trúc response bạn cung cấp: { departments: [], doctors: [] })
+        const depts = deptData.departments || [];
+        setDepartmentsList(depts);
+
+        // Tạo Map { uid: name } để tra cứu nhanh khi render bảng
+        const map: Record<string, string> = {};
+        depts.forEach((d: any) => {
+          // Lưu ý: Kiểm tra xem field ID trả về là 'uid', '_id' hay 'id'
+          const key = d.uid || d.id || d._id; 
+          if (key) map[key] = d.name;
+        });
+        setDepartmentMap(map);
+
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
 
+  // Effect để lọc dữ liệu khi có thay đổi
   useEffect(() => {
     filterBookingsList();
   }, [searchTerm, filterDepartment, bookings]);
 
-  const loadBookings = async () => {
+  // Các hàm tiện ích giữ nguyên
+  const handleUpdateStatus = async (id: string, status: Booking['status']) => {
     try {
+      await adminService.updateBookingStatus(id, status);
+      // Chỉ tải lại bookings, không cần tải lại departments
       const data = await adminService.getBookings();
       setBookings(data);
-      setFilteredBookings(data);
     } catch (error) {
-      console.error('Error loading bookings:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error updating status:', error);
+      alert('Không thể cập nhật trạng thái');
     }
   };
 
@@ -39,20 +86,11 @@ export function Appointments() {
     }
 
     if (filterDepartment !== 'all') {
+      // b.department ở đây là UID, filterDepartment cũng là UID
       filtered = filtered.filter(b => b.department === filterDepartment);
     }
 
     setFilteredBookings(filtered);
-  };
-
-  const handleUpdateStatus = async (id: string, status: Booking['status']) => {
-    try {
-      await adminService.updateBookingStatus(id, status);
-      await loadBookings();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Không thể cập nhật trạng thái');
-    }
   };
 
   const getStatusBadge = (status: Booking['status']) => {
@@ -80,12 +118,10 @@ export function Appointments() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-600">Đang tải...</div>
+        <div className="text-gray-600">Đang tải dữ liệu...</div>
       </div>
     );
   }
-
-  const departments = Array.from(new Set(bookings.map(b => b.department)));
 
   return (
     <div className="space-y-6">
@@ -108,16 +144,21 @@ export function Appointments() {
           </div>
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            
+            {/* 3. CẬP NHẬT DROPDOWN FILTER */}
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white min-w-[200px]"
             >
               <option value="all">Tất cả khoa</option>
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departmentsList.map((dept: any) => (
+                <option key={dept.uid || dept.id} value={dept.uid || dept.id}>
+                  {dept.name}
+                </option>
               ))}
             </select>
+
           </div>
         </div>
 
@@ -151,9 +192,14 @@ export function Appointments() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{booking.patientName}</div>
                   </td>
+                  
+                  {/* 4. HIỂN THỊ TÊN KHOA THAY VÌ UID */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{booking.department}</div>
+                    <div className="text-sm text-gray-900">
+                      {departmentMap[booking.department] || booking.department}
+                    </div>
                   </td>
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{booking.doctor_name}</div>
                   </td>
