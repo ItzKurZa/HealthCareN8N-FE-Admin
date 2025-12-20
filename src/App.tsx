@@ -7,7 +7,7 @@ import { Dashboard } from './presentation/pages/Dashboard';
 import { Appointments } from './presentation/pages/Appointments';
 import { Records } from './presentation/pages/Records';
 import { Settings } from './presentation/pages/Settings';
-import { adminService, DepartmentDoctor } from './infrastructure/services/adminService';
+import { adminService, DepartmentDoctor, AdminUser } from './infrastructure/services/adminService';
 
 type Page = 'dashboard' | 'appointments' | 'records' | 'settings';
 type AuthPage = 'login' | 'register';
@@ -17,11 +17,24 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [authPage, setAuthPage] = useState<AuthPage>('login');
   const [departments, setDepartments] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
 
   useEffect(() => {
-    setIsAuthenticated(adminService.isAuthenticated());
-    loadDepartments();
+    checkAuthAndLoadData();
   }, []);
+
+  // [CHANGE] Gộp logic kiểm tra auth và load data
+  const checkAuthAndLoadData = async () => {
+    const isAuth = adminService.isAuthenticated();
+    setIsAuthenticated(isAuth);
+
+    if (isAuth) {
+      // Chỉ lấy user info 1 lần khi app load
+      const user = adminService.getUserInfo();
+      setCurrentUser(user);
+      loadDepartments();
+    }
+  };
 
   const loadDepartments = async () => {
     try {
@@ -34,17 +47,20 @@ function App() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
+    // [CHANGE] Cập nhật user ngay khi login thành công
+    setCurrentUser(adminService.getUserInfo());
     setAuthPage('login');
   };
 
   const handleRegisterSuccess = () => {
-    setIsAuthenticated(true);
+    // Register xong thường chưa login ngay hoặc tự động login, tùy logic
     setAuthPage('login');
   };
 
   const handleLogout = () => {
     adminService.logout();
     setIsAuthenticated(false);
+    setCurrentUser(null); // [CHANGE] Clear user state
     setCurrentPage('dashboard');
     setAuthPage('login');
   };
@@ -88,13 +104,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* [CHANGE] Truyền user xuống Sidebar */}
       <Sidebar
         currentPage={currentPage}
         onNavigate={handleNavigate}
         onLogout={handleLogout}
+        user={currentUser}
       />
       <div className="ml-64">
-        <Navbar />
+        <Navbar
+          userName={currentUser?.name}
+          userRole={currentUser?.role}
+        />
         <main className="pt-16 p-8">
           {renderPage()}
         </main>

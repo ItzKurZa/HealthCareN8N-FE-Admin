@@ -5,43 +5,41 @@ import {
   Settings as SettingsIcon,
   LogOut
 } from 'lucide-react';
-import { adminService } from '../../infrastructure/services/adminService';
+import { AdminUser } from '../../infrastructure/services/adminService'; 
 
 interface SidebarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
   onLogout: () => void;
+  user: AdminUser | null;
 }
 
-export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
-  const user = adminService.getUserInfo();
-
-  console.log('Current User Info:', user);
+export function Sidebar({ currentPage, onNavigate, onLogout, user }: SidebarProps) {
 
   const menuItems = [
     {
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse', 'staffs', 'staff', 'Staff']
+      roles: ['admin', 'Admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse', 'staffs', 'staff', 'Staff']
     },
     {
       id: 'appointments',
       label: 'Appointments',
       icon: CalendarCheck,
-      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'staffs', 'staff', 'Staff']
+      roles: ['admin', 'Admin', 'doctors', 'doctor', 'Doctor', 'staffs', 'staff', 'Staff']
     },
     {
       id: 'records',
       label: 'Medical Records',
       icon: FileText,
-      roles: ['admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse']
+      roles: ['admin', 'Admin', 'doctors', 'doctor', 'Doctor', 'nurses', 'nurse', 'Nurse']
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: SettingsIcon,
-      roles: ['admin']
+      roles: ['admin', 'Admin']
     },
   ];
 
@@ -57,7 +55,7 @@ export function Sidebar({ currentPage, onNavigate, onLogout }: SidebarProps) {
         {user && (
           <div className="mt-2">
             <p className="text-xs text-blue-200 uppercase font-semibold">{user.role}</p>
-            <p className="text-sm truncate text-blue-100">{user.fullName}</p>
+            <p className="text-sm truncate text-blue-100">{user.name}</p>
           </div>
         )}
       </div>

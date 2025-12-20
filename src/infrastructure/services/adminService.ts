@@ -53,7 +53,7 @@ export interface RegistrationData {
 export interface AdminUser {
   id: string;
   email: string;
-  fullName: string;
+  name: string;
   role: EmployeeRole;
   department: string;
 }
@@ -73,13 +73,22 @@ class AdminService {
     const result = await response.json();
 
     if (!response.ok || !result.success) {
-      throw new Error(result.message || 'Invalid email or password');
+      throw new Error(result.message || 'Invalid email or password!');
     }
 
     const token = result.auth?.idToken;
+    const user = result.user;
+
+    if(user.role == 'patient') {
+      throw new Error('Patient cannot login hospital page!');
+    }
 
     if (token) {
       localStorage.setItem('adminToken', token);
+      
+      if (user) {
+        localStorage.setItem('adminUser', JSON.stringify(user));
+      }
     } else {
       throw new Error('Không tìm thấy Token đăng nhập');
     }
@@ -125,21 +134,17 @@ class AdminService {
   }
 
   getUserInfo(): AdminUser | null {
-    const token = localStorage.getItem('adminToken');
-    if (!token) return null;
     try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      return JSON.parse(jsonPayload);
+      const userStr = localStorage.getItem('adminUser');
+      if (!userStr) return null;
+      
+      const user = JSON.parse(userStr);
+      return user as AdminUser;
     } catch {
       return null;
     }
   }
 
-  // SỬA QUAN TRỌNG: Xử lý an toàn khi fetch Booking
   async getBookings(): Promise<Booking[]> {
     try {
       const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.booking.list}`, {
@@ -174,7 +179,6 @@ class AdminService {
     if (!response.ok) throw new Error('Failed to update status');
   }
 
-  // SỬA QUAN TRỌNG: Xử lý an toàn khi fetch Medical Records
   async getMedicalRecords(): Promise<MedicalRecord[]> {
     try {
       const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.medical.list}`, {
@@ -230,6 +234,7 @@ class AdminService {
 
   logout() {
     localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
   }
 }
 
