@@ -3,11 +3,10 @@ import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // ... (Các interface giữ nguyên như cũ)
 export interface Booking {
   id: string;
-  userId: string;
-  patientName: string;
+  cccd: string;
   department: string;
-  doctor: string;
-  appointmentDate: string;
+  doctor_name: string;
+  appointment_date: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   createdAt: string;
 }
@@ -200,30 +199,78 @@ class AdminService {
 
   async getDashboardStats(): Promise<DashboardStats> {
     try {
-      // Vì getBookings và getMedicalRecords đã được sửa để trả về mảng rỗng khi lỗi
-      // nên Promise.all này sẽ không bị crash nữa.
-      const [bookings, records] = await Promise.all([
+      // 1. Lấy thông tin User hiện tại
+      const user = this.getUserInfo();
+      if (!user) throw new Error('User not found');
+
+      // 2. Gọi API lấy dữ liệu (Sử dụng Promise.all để chạy song song cho nhanh)
+      const [appointments, medicalRecords] = await Promise.all([
         this.getBookings(),
         this.getMedicalRecords()
       ]);
 
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      // [FIX] Đảm bảo biến là mảng, nếu API lỗi trả về null/undefined thì gán mảng rỗng
+      const safeAppointments = Array.isArray(appointments) ? appointments : [];
+      const safeRecords = Array.isArray(medicalRecords) ? medicalRecords : [];
 
-      const todayAppointments = bookings.filter(b =>
-        b.appointmentDate.includes(todayStr) && b.status !== 'cancelled'
-      ).length;
+      // 3. Logic lọc dữ liệu an toàn (Thêm dấu ? và || false)
+      
+      // -- Đếm Lịch hẹn chờ duyệt --
+      const pendingAppointments = safeAppointments.filter(app => {
+        const isPending = app.status === 'pending';
+        
+        // Logic phân quyền đếm số
+        if (user.role.toLowerCase() === 'admin') return isPending;
+        
+        if (user.role.toLowerCase().includes('doctor')) {
+            return isPending && app.doctor_name?.includes(user.name);
+        }
+        
+        if (['nurse', 'staff'].some(r => user.role.toLowerCase().includes(r))) {
+            return isPending && app.department?.includes(user.department);
+        }
+        
+        return false;
+      }).length;
 
-      const newAppointments = bookings.filter(b => b.status === 'pending').length;
-      const recentRecords = records.length;
+      // -- Đếm Lịch hẹn hôm nay --
+      const today = new Date().toISOString().split('T')[0];
+      const todayAppointments = safeAppointments.filter(app => {
+        // [FIX] Kiểm tra app.date và app.time tồn tại trước khi dùng
+        if (!app.appointment_date) return false;
+        
+        const isToday = app.appointment_date.startsWith(today);
+        
+        if (user.role === 'admin') return isToday;
+        
+        if (user.role.toLowerCase().includes('doctor')) {
+             return isToday && app.doctor_name?.includes(user.name);
+        }
+        
+        if (['nurse', 'staff'].some(r => user.role.toLowerCase().includes(r))) {
+             return isToday && app.department?.includes(user.department);
+        }
+        
+        return false;
+      }).length;
+
+      // -- Đếm Hồ sơ mới (trong tháng này) --
+      const currentMonth = new Date().getMonth();
+      const newRecords = safeRecords.filter(record => {
+          if (!record.updatedAt) return false;
+          const recordDate = new Date(record.updatedAt);
+          return recordDate.getMonth() === currentMonth;
+      }).length;
 
       return {
-        todayAppointments,
-        newAppointments,
-        recentRecords
+        todayAppointments: todayAppointments,
+        newAppointments: pendingAppointments,
+        recentRecords: newRecords,
       };
+
     } catch (error) {
       console.error('Failed to get dashboard stats:', error);
+      // Trả về số liệu 0 thay vì crash app
       return {
         todayAppointments: 0,
         newAppointments: 0,
