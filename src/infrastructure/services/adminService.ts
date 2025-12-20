@@ -79,13 +79,13 @@ class AdminService {
     const token = result.auth?.idToken;
     const user = result.user;
 
-    if(user.role == 'patient') {
+    if (user.role == 'patient') {
       throw new Error('Patient cannot login hospital page!');
     }
 
     if (token) {
       localStorage.setItem('adminToken', token);
-      
+
       if (user) {
         localStorage.setItem('adminUser', JSON.stringify(user));
       }
@@ -137,7 +137,7 @@ class AdminService {
     try {
       const userStr = localStorage.getItem('adminUser');
       if (!userStr) return null;
-      
+
       const user = JSON.parse(userStr);
       return user as AdminUser;
     } catch {
@@ -215,22 +215,22 @@ class AdminService {
       const safeRecords = Array.isArray(medicalRecords) ? medicalRecords : [];
 
       // 3. Logic lọc dữ liệu an toàn (Thêm dấu ? và || false)
-      
+
       // -- Đếm Lịch hẹn chờ duyệt --
       const pendingAppointments = safeAppointments.filter(app => {
         const isPending = app.status === 'pending';
-        
+
         // Logic phân quyền đếm số
         if (user.role.toLowerCase() === 'admin') return isPending;
-        
+
         if (user.role.toLowerCase().includes('doctor')) {
-            return isPending && app.doctor_name?.includes(user.name);
+          return isPending && app.doctor_name?.includes(user.name);
         }
-        
+
         if (['nurse', 'staff'].some(r => user.role.toLowerCase().includes(r))) {
-            return isPending && app.department?.includes(user.department);
+          return isPending && app.department?.includes(user.department);
         }
-        
+
         return false;
       }).length;
 
@@ -239,28 +239,28 @@ class AdminService {
       const todayAppointments = safeAppointments.filter(app => {
         // [FIX] Kiểm tra app.date và app.time tồn tại trước khi dùng
         if (!app.appointment_date) return false;
-        
+
         const isToday = app.appointment_date.startsWith(today);
-        
+
         if (user.role === 'admin') return isToday;
-        
+
         if (user.role.toLowerCase().includes('doctor')) {
-             return isToday && app.doctor_name?.includes(user.name);
+          return isToday && app.doctor_name?.includes(user.name);
         }
-        
+
         if (['nurse', 'staff'].some(r => user.role.toLowerCase().includes(r))) {
-             return isToday && app.department?.includes(user.department);
+          return isToday && app.department?.includes(user.department);
         }
-        
+
         return false;
       }).length;
 
       // -- Đếm Hồ sơ mới (trong tháng này) --
       const currentMonth = new Date().getMonth();
       const newRecords = safeRecords.filter(record => {
-          if (!record.updatedAt) return false;
-          const recordDate = new Date(record.updatedAt);
-          return recordDate.getMonth() === currentMonth;
+        if (!record.updatedAt) return false;
+        const recordDate = new Date(record.updatedAt);
+        return recordDate.getMonth() === currentMonth;
       }).length;
 
       return {
