@@ -191,7 +191,48 @@ class AdminService {
       }
 
       const result = await response.json();
-      return result.data || [];
+      console.log('API Medical Raw Response:', result); // [DEBUG] Xem log để biết API trả về gì
+
+      // 1. Lấy mảng dữ liệu gốc
+      let rawData = [];
+      if (Array.isArray(result)) {
+        rawData = result;
+      } else if (result.data && Array.isArray(result.data)) {
+        rawData = result.data;
+      } else {
+        return [];
+      }
+
+      // 2. Map dữ liệu chi tiết (Bao gồm cả map bên trong mảng files)
+      return rawData.map((item: any) => {
+
+        // Xử lý mảng files an toàn
+        const rawFiles = Array.isArray(item.files) ? item.files : [];
+
+        // Map từng file để chuẩn hóa tên trường
+        const mappedFiles = rawFiles.map((f: any) => ({
+          // Frontend cần 'fileId', Backend có thể trả về '_id', 'id', 'file_id'
+          fileId: f.fileId || f.id || f._id || f.file_id || '',
+
+          // Frontend cần 'fileName', Backend có thể trả về 'name', 'filename', 'originalName'
+          fileName: f.fileName || f.name || f.filename || f.original_name || 'Không tên',
+
+          // Frontend cần 'uploadDate', Backend có thể trả về 'created_at', 'date'
+          uploadDate: f.uploadDate || f.upload_date || f.created_at || new Date().toISOString()
+        }));
+
+        return {
+          id: item.id || item._id || '',
+          userId: item.userId || item.user_id || '',
+          patientName: item.patientName || item.patient_name || item.fullname || 'Bệnh nhân',
+
+          // Gán mảng files đã được chuẩn hóa vào đây
+          files: mappedFiles,
+
+          updatedAt: item.updatedAt || item.updated_at || new Date().toISOString()
+        };
+      });
+
     } catch (error) {
       console.error('Error fetching records:', error);
       return [];
